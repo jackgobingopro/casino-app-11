@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Example Casino Platform</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- React & React DOM CDNs -->
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  <!-- Babel Standalone CDN to parse JSX -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+<body class="bg-slate-950 text-white min-h-screen">
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+
+    const TITLES_DB = {
+      'Novice Gambler': { rarity: 'Common', color: 'text-slate-400 bg-slate-900 border-slate-700' },
+      'Lucky Beginner': { rarity: 'Common', color: 'text-slate-400 bg-slate-900 border-slate-700' },
+      'Coin Flipper': { rarity: 'Uncommon', color: 'text-emerald-400 bg-emerald-950/40 border-emerald-800' },
+      'Dice Roller': { rarity: 'Uncommon', color: 'text-emerald-400 bg-emerald-950/40 border-emerald-800' },
+      'Card Shark': { rarity: 'Rare', color: 'text-blue-400 bg-blue-950/40 border-blue-800' },
+      'High Roller': { rarity: 'Rare', color: 'text-blue-400 bg-blue-950/40 border-blue-800' },
+      'Fortune Seeker': { rarity: 'Epic', color: 'text-purple-400 bg-purple-950/40 border-purple-800' },
+      'Casino Royale': { rarity: 'Epic', color: 'text-purple-400 bg-purple-950/40 border-purple-800' },
+      'Jackpot Master': { rarity: 'Legendary', color: 'text-amber-400 bg-amber-950/40 border-amber-500 shadow-[0_0_15px_rgba(245,158,11,0.25)]' },
+      'God of Chaos': { rarity: 'Mythic', color: 'text-rose-400 bg-rose-950/40 border-rose-500 shadow-[0_0_20px_rgba(244,63,94,0.35)]' }
+    };
+
+    const CRATES_DB = [
+      { 
+        id: 'bronze', 
+        name: 'Bronze Crate', 
+        price: 50, 
+        color: 'border-slate-700 bg-slate-900/60',
+        drops: [
+          { title: 'Novice Gambler', chance: 60 },
+          { title: 'Lucky Beginner', chance: 30 },
+          { title: 'Coin Flipper', chance: 10 }
+        ]
+      },
+      { 
+        id: 'silver', 
+        name: 'Silver Crate', 
+        price: 250, 
+        color: 'border-blue-800/80 bg-blue-950/20',
+        drops: [
+          { title: 'Dice Roller', chance: 45 },
+          { title: 'Card Shark', chance: 35 },
+          { title: 'High Roller', chance: 15 },
+          { title: 'Fortune Seeker', chance: 5 }
+        ]
+      },
+      { 
+        id: 'gold', 
+        name: 'Gold Crate', 
+        price: 1000, 
+        color: 'border-amber-600/80 bg-amber-950/20',
+        drops: [
+          { title: 'Casino Royale', chance: 40 },
+          { title: 'Jackpot Master', chance: 35 },
+          { title: 'God of Chaos', chance: 25 }
+        ]
+      }
+    ];
+
+    function App() {
+      const [user, setUser] = useState(null);
+      const [isRegistering, setIsRegistering] = useState(false);
+      const [usernameInput, setUsernameInput] = useState('');
+      const [passwordInput, setPasswordInput] = useState('');
+      const [authError, setAuthError] = useState('');
+
+      const [userData, setUserData] = useState({
+        username: '',
+        balance: 1000,
+        totalBetted: 0,
+        totalWon: 0,
+        history: [],
+        unlockedTitles: ['Novice Gambler'],
+        equippedTitle: 'Novice Gambler'
+      });
+
+      const [activeTab, setActiveTab] = useState('games');
+      const [activeGame, setActiveGame] = useState('slots');
+      const [currentBet, setCurrentBet] = useState(10);
+      const [customBetInput, setCustomBetInput] = useState('10');
+
+      useEffect(() => {
+        const savedAccount = localStorage.getItem('casino_current_user');
+        if (savedAccount) {
+          const parsed = JSON.parse(savedAccount);
+          setUser(parsed.username);
+          setUserData(parsed);
+        }
+      }, []);
+
+      const saveUserData = (updated) => {
+        setUserData(updated);
+        localStorage.setItem('casino_current_user', JSON.stringify(updated));
+        const all = JSON.parse(localStorage.getItem('casino_accounts') || '{}');
+        all[updated.username] = updated;
+        localStorage.setItem('casino_accounts', JSON.stringify(all));
+      };
+
+      const handleAuthSubmit = (e) => {
+        e.preventDefault();
+        setAuthError('');
+        const uName = usernameInput.trim();
+        const pWord = passwordInput.trim();
+
+        if (!uName || !pWord) {
+          setAuthError('Please fill in both fields.');
+          return;
+        }
+
+        const existingAccounts = JSON.parse(localStorage.getItem('casino_accounts') || '{}');
+
+        if (isRegistering) {
+          if (existingAccounts[uName]) {
+            setAuthError('Username already taken!');
+            return;
+          }
+          const newAccount = {
+            username: uName,
+            password: pWord,
+            balance: 1000,
+            totalBetted: 0,
+            totalWon: 0,
+            history: [],
+            unlockedTitles: ['Novice Gambler'],
+            equippedTitle: 'Novice Gambler'
+          };
+          existingAccounts[uName] = newAccount;
+          localStorage.setItem('casino_accounts', JSON.stringify(existingAccounts));
+          setUser(uName);
+          setUserData(newAccount);
+          localStorage.setItem('casino_current_user', JSON.stringify(newAccount));
+        } else {
+          const found = existingAccounts[uName];
+          if (!found || found.password !== pWord) {
+            setAuthError('Invalid username or password.');
+            return;
+          }
+          setUser(uName);
+          setUserData(found);
+          localStorage.setItem('casino_current_user', JSON.stringify(found));
+        }
+      };
+
+      const handleLogout = () => {
+        localStorage.removeItem('casino_current_user');
+        setUser(null);
+      };
+
+      const recordGameResult = (betAmount, winAmount, gameName) => {
+        const isWin = winAmount > betAmount;
+        const newBal = Math.max(0, userData.balance - betAmount + winAmount);
+        const updated = {
+          ...userData,
+          balance: newBal,
+          totalBetted: userData.totalBetted + betAmount,
+          totalWon: userData.totalWon + winAmount,
+          history: [{ outcome: isWin ? 'win' : 'loss', bet: betAmount, won: winAmount, game: gameName }, ...(userData.history || [])].slice(0, 30)
+        };
+        saveUserData(updated);
+      };
+
+      if (!user) {
+        return (
+          <div className="min-h-screen flex items-center justify-center p-4">
+            <div className="bg-slate-900 border border-slate-800 p-8 rounded-3xl w-full max-w-md shadow-2xl">
+              <h1 className="text-3xl font-black text-amber-400 text-center mb-6">EXAMPLE CASINO</h1>
+              {authError && <div className="mb-4 p-3 bg-rose-500/20 text-rose-400 text-xs rounded-xl font-bold text-center">{authError}</div>}
+              <form onSubmit={handleAuthSubmit} className="space-y-4">
+                <div>
+                  <label className="text-xs font-bold text-slate-400 uppercase">Username</label>
+                  <input type="text" value={usernameInput} onChange={e => setUsernameInput(e.target.value)} required className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm font-bold text-white mt-1 focus:outline-none focus:border-amber-500"/>
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-slate-400 uppercase">Password</label>
+                  <input type="password" value={passwordInput} onChange={e => setPasswordInput(e.target.value)} required className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm font-bold text-white mt-1 focus:outline-none focus:border-amber-500"/>
+                </div>
+                <button type="submit" className="w-full bg-amber-500 text-slate-950 font-black py-3.5 rounded-xl hover:bg-amber-400 transition text-sm">{isRegistering ? 'Register' : 'Log In'}</button>
+              </form>
+              <button onClick={() => setIsRegistering(!isRegistering)} className="w-full text-xs text-slate-400 mt-4 text-center hover:text-amber-400">{isRegistering ? 'Already have an account? Log In' : "Need an account? Register"}</button>
+            </div>
+          </div>
+        );
+      }
+
+      return (
+        <div className="min-h-screen flex flex-col font-sans">
+          <header className="bg-slate-900 border-b border-slate-800 px-6 py-4 flex justify-between items-center">
+            <h1 className="text-xl font-black text-amber-400 tracking-wider">EXAMPLE CASINO</h1>
+            <div className="flex items-center space-x-4">
+              <div className="bg-slate-950 border border-slate-800 px-4 py-2 rounded-xl flex items-center space-x-2">
+                <span className="text-amber-400 font-bold">💰</span>
+                <span className="font-mono font-black text-emerald-400">${userData.balance.toLocaleString()}</span>
+              </div>
+              <button onClick={handleLogout} className="bg-slate-800 hover:bg-rose-950/40 border border-slate-700 hover:border-rose-500 text-xs font-bold px-3 py-2 rounded-xl transition">Logout ({userData.username})</button>
+            </div>
+          </header>
+
+          <div className="bg-slate-900/90 border-b border-slate-800 px-6 py-3 flex gap-2 overflow-x-auto">
+            {['games', 'crates', 'titles', 'leaderboard'].map(tab => (
+              <button key={tab} onClick={() => setActiveTab(tab)} className={`px-4 py-2 rounded-xl text-xs font-bold uppercase transition ${activeTab === tab ? 'bg-amber-500 text-slate-950' : 'text-slate-400 hover:text-white'}`}>{tab}</button>
+            ))}
+          </div>
+
+          <main className="flex-1 p-6 max-w-6xl w-full mx-auto">
+            {activeTab === 'games' && (
+              <div className="flex flex-col md:flex-row gap-6">
+                <div className="flex-1 bg-slate-900 border border-slate-800 rounded-3xl p-8 flex flex-col items-center justify-center min-h-[400px]">
+                  {activeGame === 'slots' && <SlotsGame balance={userData.balance} currentBet={currentBet} onFinish={recordGameResult} />}
+                </div>
+                <div className="w-full md:w-64 bg-slate-900 border border-slate-800 rounded-3xl p-6">
+                  <h3 className="text-xs font-black uppercase text-slate-400 mb-4">Bet Amount</h3>
+                  <div className="grid grid-cols-2 gap-2 mb-4">
+                    {[10, 50, 100, 250].map(amt => (
+                      <button key={amt} onClick={() => setCurrentBet(amt)} className={`py-2 rounded-xl text-xs font-bold border ${currentBet === amt ? 'bg-amber-500 text-slate-950 border-amber-500' : 'bg-slate-950 border-slate-800'}`}>${amt}</button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'crates' && (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {CRATES_DB.map(c => (
+                  <div key={c.id} className={`border ${c.color} p-6 rounded-3xl space-y-4`}>
+                    <h3 className="text-lg font-black">{c.name}</h3>
+                    <p className="text-amber-400 font-mono font-bold">${c.price}</p>
+                    <button onClick={() => {
+                      if (userData.balance >= c.price) {
+                        const won = c.drops[Math.floor(Math.random() * c.drops.length)].title;
+                        const newUnlocked = Array.from(new Set([...userData.unlockedTitles, won]));
+                        saveUserData({ ...userData, balance: userData.balance - c.price, unlockedTitles: newUnlocked });
+                        alert(`Unlocked: ${won}!`);
+                      }
+                    }} disabled={userData.balance < c.price} className="w-full bg-slate-950 border border-slate-700 py-2.5 rounded-xl text-xs font-bold hover:border-amber-500 disabled:opacity-40">Open Crate</button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {activeTab === 'titles' && (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {Object.keys(TITLES_DB).map(t => {
+                  const unlocked = userData.unlockedTitles.includes(t);
+                  return (
+                    <div key={t} className={`p-4 border rounded-2xl ${TITLES_DB[t].color} ${!unlocked && 'opacity-40'}`}>
+                      <h4 className="font-bold text-white">{t}</h4>
+                      <button onClick={() => unlocked && saveUserData({ ...userData, equippedTitle: t })} disabled={!unlocked || userData.equippedTitle === t} className="mt-4 w-full bg-slate-950 border border-slate-800 text-xs py-2 rounded-xl font-bold">{userData.equippedTitle === t ? 'Equipped' : unlocked ? 'Equip' : 'Locked'}</button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </main>
+        </div>
+      );
+    }
+
+    function SlotsGame({ balance, currentBet, onFinish }) {
+      const SYMBOLS = ['🎰', '💎', '🍒', '🔔', '7️⃣'];
+      const [reels, setReels] = useState(['7️⃣', '💎', '7️⃣']);
+      const [spinning, setSpinning] = useState(false);
+
+      const spin = () => {
+        if (balance < currentBet || spinning) return;
+        setSpinning(true);
+        setTimeout(() => {
+          const res = [SYMBOLS[Math.floor(Math.random()*5)], SYMBOLS[Math.floor(Math.random()*5)], SYMBOLS[Math.floor(Math.random()*5)]];
+          setReels(res);
+          setSpinning(false);
+          const win = (res[0] === res[1] && res[1] === res[2]) ? currentBet * 5 : 0;
+          onFinish(currentBet, win, 'Slots');
+        }, 600);
+      };
+
+      return (
+        <div className="flex flex-col items-center gap-6">
+          <div className="flex gap-4 bg-slate-950 p-6 rounded-3xl border border-slate-800">
+            {reels.map((r, i) => (
+              <div key={i} className="w-20 h-28 bg-slate-900 border border-amber-500/30 rounded-2xl flex items-center justify-center text-4xl">{r}</div>
+            ))}
+          </div>
+          <button onClick={spin} disabled={spinning || balance < currentBet} className="bg-amber-500 text-slate-950 font-black px-8 py-3.5 rounded-2xl hover:bg-amber-400 transition shadow-lg shadow-amber-500/20">SPIN (${currentBet})</button>
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>
